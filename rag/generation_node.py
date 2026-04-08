@@ -21,6 +21,10 @@ def generation_node(state):
     context = state["context"]
 
     question = messages[-1].content
+    history = "\n".join(
+        f"{message.type}: {message.content}"
+        for message in messages[:-1]
+    )
 
     if settings.USE_LOCAL_RAG:
         if context.strip():
@@ -39,9 +43,14 @@ def generation_node(state):
     llm = get_llm()
 
     prompt = f"""
-Use context to answer:
+Use the conversation history and retrieved context to answer the user's question.
+Prefer the history if the user is asking to recall something from the current chat.
 
-{context}
+Conversation history:
+{history or "(no prior history)"}
+
+Retrieved context:
+{context or "(no retrieved context)"}
 
 Question:
 {question}

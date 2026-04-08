@@ -1,8 +1,10 @@
-from typing import List, TypedDict
+from typing import Annotated, List, TypedDict
+
+from langgraph.graph import add_messages
 from langchain_core.messages import BaseMessage
 
 
 class GraphState(TypedDict, total=False):
 
-    messages: List[BaseMessage]
+    messages: Annotated[List[BaseMessage], add_messages]
     context: str

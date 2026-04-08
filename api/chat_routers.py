@@ -40,5 +40,6 @@ def chat(payload: ChatRequest):
 
     return {
         "answer": response["messages"][-1].content,
-        "session_id": payload.session_id
+        "session_id": payload.session_id,
+        "debug_context": response.get("context", "")
     }
