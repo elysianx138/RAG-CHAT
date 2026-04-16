@@ -1,4 +1,6 @@
 from pathlib import Path
+import shutil
+import uuid
 
 from langchain_core.messages import HumanMessage
 
@@ -7,8 +9,10 @@ from app.config import settings
 from rag.graph import build_graph
 
 
-def test_messages_accumulate_with_same_thread(monkeypatch, tmp_path):
-    checkpoint_path = tmp_path / "checkpoints.db"
+def test_messages_accumulate_with_same_thread(monkeypatch):
+    runtime_root = Path("db/test_runtime_memory") / uuid.uuid4().hex
+    runtime_root.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = runtime_root / "checkpoints.db"
     monkeypatch.setattr(settings, "USE_LOCAL_RAG", True)
     monkeypatch.setattr(sqlite_checkpoint, "DB_PATH", checkpoint_path)
 
@@ -20,10 +24,13 @@ def test_messages_accumulate_with_same_thread(monkeypatch, tmp_path):
 
     state = graph.get_state(config)
     assert len(state.values["messages"]) >= 4
+    shutil.rmtree(runtime_root, ignore_errors=True)
 
 
-def test_messages_do_not_mix_across_threads(monkeypatch, tmp_path):
-    checkpoint_path = tmp_path / "checkpoints.db"
+def test_messages_do_not_mix_across_threads(monkeypatch):
+    runtime_root = Path("db/test_runtime_memory") / uuid.uuid4().hex
+    runtime_root.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = runtime_root / "checkpoints.db"
     monkeypatch.setattr(settings, "USE_LOCAL_RAG", True)
     monkeypatch.setattr(sqlite_checkpoint, "DB_PATH", checkpoint_path)
 
@@ -38,3 +45,4 @@ def test_messages_do_not_mix_across_threads(monkeypatch, tmp_path):
     state_b = graph.get_state(config_b)
 
     assert state_a.values["messages"] != state_b.values["messages"]
+    shutil.rmtree(runtime_root, ignore_errors=True)

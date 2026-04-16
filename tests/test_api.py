@@ -1,4 +1,6 @@
 from pathlib import Path
+import shutil
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,11 +14,12 @@ from app.main import app
 
 
 @pytest.fixture
-def client(tmp_path, monkeypatch):
-    db_dir = tmp_path / "db"
-    upload_dir = tmp_path / "uploads"
-    db_dir.mkdir()
-    upload_dir.mkdir()
+def client(monkeypatch):
+    runtime_root = Path("db/test_runtime_api") / uuid.uuid4().hex
+    db_dir = runtime_root / "db"
+    upload_dir = runtime_root / "uploads"
+    db_dir.mkdir(parents=True)
+    upload_dir.mkdir(parents=True)
 
     monkeypatch.setattr(settings, "USE_LOCAL_RAG", True)
     monkeypatch.setattr(settings, "DATA_DIR", db_dir)
@@ -34,6 +37,8 @@ def client(tmp_path, monkeypatch):
     with TestClient(app) as test_client:
         yield test_client
     get_graph.cache_clear()
+    if runtime_root.exists():
+        shutil.rmtree(runtime_root, ignore_errors=True)
 
 
 def test_health_endpoint(client):
