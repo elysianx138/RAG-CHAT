@@ -34,7 +34,9 @@ def render_document_manager():
             response = requests.post(f"{API_BASE}/documents/rebuild", timeout=120)
             response.raise_for_status()
             payload = response.json()
-            st.success(f"重建完成：{payload.get('documents', 0)} 个文件，{payload.get('chunks', 0)} 个片段。")
+            st.success(
+                f"重建完成：共处理 {payload.get('documents', 0)} 个文件，生成 {payload.get('chunks', 0)} 个片段。"
+            )
         except requests.RequestException as exc:
             st.error(f"重建索引失败：{exc}")
 
@@ -46,7 +48,7 @@ def render_document_manager():
         filename = document.get("filename", "未知文件")
         chunks = document.get("chunks", 0)
         updated_at = document.get("updated_at", "未知时间")
-        with st.expander(f"{filename} ({chunks} 个片段)", expanded=False):
+        with st.expander(f"{filename}（{chunks} 个片段）", expanded=False):
             st.caption(f"最近更新时间：{updated_at}")
             if st.button(f"删除 {filename}", key=f"delete-{filename}", use_container_width=True):
                 try:
@@ -129,7 +131,7 @@ with st.sidebar:
         "重复文件策略",
         options=["replace", "skip", "reject"],
         index=0,
-        help="replace 表示替换旧文件，skip 表示跳过，reject 表示直接报错。",
+        help="replace 表示替换旧文件，skip 表示跳过，reject 表示直接返回冲突。",
     )
     uploaded_file = st.file_uploader("选择 PDF 或 Markdown 文件", type=["pdf", "md"])
 
@@ -153,8 +155,9 @@ with st.sidebar:
                 response.raise_for_status()
                 payload = response.json()
                 st.session_state.uploaded_files.append(payload.get("filename", uploaded_file.name))
+
                 if payload.get("status") == "skipped":
-                    st.info(payload.get("message", "文件已跳过。"))
+                    st.info(payload.get("message", "检测到重复文件，已跳过。"))
                 else:
                     st.success(
                         f"上传成功：{payload.get('filename')}，共生成 {payload.get('chunks', 0)} 个片段。"
@@ -217,7 +220,12 @@ if query:
     except requests.RequestException as exc:
         error_message = f"请求失败：{exc}"
         st.session_state.messages.append(
-            {"role": "assistant", "content": error_message, "context": "", "retrieval_scores": []}
+            {
+                "role": "assistant",
+                "content": error_message,
+                "context": "",
+                "retrieval_scores": [],
+            }
         )
         with st.chat_message("assistant"):
             st.error(error_message)
