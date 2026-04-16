@@ -45,12 +45,19 @@ class Settings:
     CHECKPOINT_DB_PATH = DATA_DIR / "checkpoints.db"
     SQLITE_DB = f"sqlite:///{(DATA_DIR / 'chat.db').as_posix()}"
 
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
     PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "rag-chat")
 
+    LLM_PROVIDER = os.getenv(
+        "LLM_PROVIDER",
+        "openai" if os.getenv("OPENAI_API_KEY") else "groq",
+    ).strip().lower()
+    LLM_MODEL = os.getenv("LLM_MODEL", "")
+
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-    LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
 
     USE_LOCAL_RAG = _read_bool("USE_LOCAL_RAG", _read_bool("DEV_MODE", False))
     DEFAULT_DUPLICATE_STRATEGY = os.getenv("DEFAULT_DUPLICATE_STRATEGY", "replace")
@@ -64,6 +71,7 @@ class Settings:
 
     ALLOWED_EXTENSIONS = {".pdf", ".md"}
     VALID_DUPLICATE_STRATEGIES = {"replace", "skip", "reject"}
+    VALID_LLM_PROVIDERS = {"openai", "groq"}
 
     def ensure_directories(self) -> None:
         self.DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -71,6 +79,13 @@ class Settings:
 
     def runtime_mode(self) -> str:
         return "local" if self.USE_LOCAL_RAG else "remote"
+
+    def resolve_llm_model(self) -> str:
+        if self.LLM_MODEL:
+            return self.LLM_MODEL
+        if self.LLM_PROVIDER == "openai":
+            return "gpt-4o-mini"
+        return "llama-3.3-70b-versatile"
 
     def validate_runtime(self) -> None:
         self.ensure_directories()
@@ -80,18 +95,26 @@ class Settings:
                 "DEFAULT_DUPLICATE_STRATEGY 只能是 replace、skip 或 reject。"
             )
 
-        if not self.USE_LOCAL_RAG:
-            missing = []
-            if not self.GROQ_API_KEY:
-                missing.append("GROQ_API_KEY")
-            if not self.PINECONE_API_KEY:
-                missing.append("PINECONE_API_KEY")
-            if missing:
-                raise RuntimeError(
-                    "当前处于在线模式，但缺少必要配置："
-                    + "、".join(missing)
-                    + "。请补齐 .env，或把 USE_LOCAL_RAG 设为 true。"
-                )
+        if self.LLM_PROVIDER not in self.VALID_LLM_PROVIDERS:
+            raise RuntimeError("LLM_PROVIDER 只能是 openai 或 groq。")
+
+        if self.USE_LOCAL_RAG:
+            return
+
+        missing = []
+        if self.LLM_PROVIDER == "openai" and not self.OPENAI_API_KEY:
+            missing.append("OPENAI_API_KEY")
+        if self.LLM_PROVIDER == "groq" and not self.GROQ_API_KEY:
+            missing.append("GROQ_API_KEY")
+        if not self.PINECONE_API_KEY:
+            missing.append("PINECONE_API_KEY")
+
+        if missing:
+            raise RuntimeError(
+                "当前处于在线模式，但缺少必要配置："
+                + "、".join(missing)
+                + "。请补齐 .env，或把 USE_LOCAL_RAG 设为 true。"
+            )
 
 
 settings = Settings()
