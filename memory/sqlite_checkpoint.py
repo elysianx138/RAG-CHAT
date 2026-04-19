@@ -12,7 +12,7 @@ try:
     use_sqlite = True
 except ImportError:
     try:
-        from langgraph.checkpoints.sqlite import SqliteSaver
+        from langgraph.checkpoint.sqlite import SqliteSaver
         use_sqlite = True
     except ImportError:
         from langgraph.checkpoint.memory import MemorySaver
